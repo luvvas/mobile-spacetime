@@ -1,5 +1,8 @@
-import { StatusBar } from 'expo-status-bar'
+import { useEffect } from 'react'
 import { ImageBackground, View, Text, TouchableOpacity } from 'react-native'
+import { StatusBar } from 'expo-status-bar'
+import { styled } from 'nativewind'
+import { makeRedirectUri, useAuthRequest } from 'expo-auth-session'
 
 import {
   useFonts,
@@ -12,7 +15,7 @@ import { BaiJamjuree_700Bold } from '@expo-google-fonts/bai-jamjuree'
 import blurBg from './assets/bg-blur.png'
 import Stripes from './assets/stripes.svg'
 import NLWLogo from './assets/nlw-spacetime-logo.svg'
-import { styled } from 'nativewind'
+import { api } from './src/lib/api'
 
 const StyledStripes = styled(Stripes)
 
@@ -22,6 +25,46 @@ export default function App() {
     Roboto_700Bold,
     BaiJamjuree_700Bold,
   })
+
+  const discovery = {
+    authorizationEndpoint: 'https://github.com/login/oauth/authorize',
+    tokenEndpoint: 'https://github.com/login/oauth/access_token',
+    revocationEndpoint:
+      'https://github.com/settings/connections/applications/9270b7ed0d7970803506',
+  }
+
+  const [request, response, signInWithGithub] = useAuthRequest(
+    {
+      clientId: '9270b7ed0d7970803506',
+      scopes: ['identity'],
+      redirectUri: makeRedirectUri({
+        scheme: 'nlwspacetime',
+      }),
+    },
+    discovery,
+  )
+
+  useEffect(() => {
+    // console.log(
+    //   makeRedirectUri({
+    //     scheme: 'nlwspacetime',
+    //   }),
+    // )
+
+    if (response?.type === 'success') {
+      const { code } = response.params
+
+      api
+        .post('/register', {
+          code,
+        })
+        .then((response) => {
+          const { token } = response.data
+
+          console.log(token)
+        })
+    }
+  }, [response])
 
   if (!hasLoadedFonts) return null
 
@@ -48,7 +91,10 @@ export default function App() {
           activeOpacity={0.7}
           className="rounded-full bg-green-500 px-5 py-2"
         >
-          <Text className="font-alt text-sm uppercase text-black">
+          <Text
+            onPress={() => signInWithGithub()}
+            className="font-alt text-sm uppercase text-black"
+          >
             Cadastrar lembrança
           </Text>
         </TouchableOpacity>
