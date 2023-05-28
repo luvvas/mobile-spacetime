@@ -1,20 +1,55 @@
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useEffect, useState } from 'react'
 import { Image, Text, View, TouchableOpacity, ScrollView } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Link, useRouter } from 'expo-router'
 import Icon from '@expo/vector-icons/Feather'
 import * as SecureStore from 'expo-secure-store'
+import dayjs from 'dayjs'
+import ptBr from 'dayjs/locale/pt-br'
 
 import NLWLogo from '../assets/nlw-spacetime-logo.svg'
 
+import { api } from '../src/lib/api'
+
+dayjs.locale(ptBr)
+
+interface Memory {
+  coverUrl: string
+  excerpt: string
+  createdAt: string
+  id: string
+}
+
 export default function NewMemory() {
-  const { bottom, top } = useSafeAreaInsets()
   const router = useRouter()
+  const [memories, setMemories] = useState<Memory[]>([])
+
+  const { bottom, top } = useSafeAreaInsets()
 
   async function signOut() {
     await SecureStore.deleteItemAsync('token')
 
     router.push('/')
   }
+
+  async function loadMemories() {
+    const token = await SecureStore.getItemAsync('token')
+
+    const response = await api.get('/memories', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    })
+
+    setMemories(response.data)
+  }
+
+  // Async/Await doesn't work inside useEffect()
+  // So we make an function to use it, and call this function
+  // inside useEffect()
+  useEffect(() => {
+    loadMemories()
+  }, [])
 
   return (
     <ScrollView
@@ -40,42 +75,43 @@ export default function NewMemory() {
         </View>
       </View>
 
-      <View className="mt-6 space-y-4">
-        <View className="space-y-4">
-          <View className="flex-row items-center gap-2">
-            <View className="h-px w-5 bg-gray-50" />
-            <Text className="font-body text-xs text-gray-100">
-              12 de Abril, 2023
-            </Text>
-          </View>
-          <View className="space-y-4 px-8">
-            <Image
-              source={{
-                uri: 'https://twitter.com/sixofzoya/status/1662640787169968129/photo/1',
-              }}
-              className="aspect-video w-full rounded-lg"
-              alt=""
-            ></Image>
-            <Text className="font-body text-base leading-relaxed text-gray-100">
-              Lorem ipsum dolor sit amet consectetur adipisicing elit. Non
-              voluptatibus corrupti blanditiis rem praesentium ipsam pariatur
-              suscipit molestiae rerum a error exercitationem ducimus possimus
-              id fuga ab, est aspernatur harum accusantium deleniti atque sequi
-              sit repudiandae placeat. Labore quod, rem, obcaecati mollitia, non
-              vel laboriosam adipisci quis minima odio unde.
-            </Text>
-            {/* gap doens't work very well inside a link */}
-            <Link href="/memories/id" asChild>
-              <TouchableOpacity className="flex-row items-center gap-2">
-                <Text className="font-body text-sm text-gray-200">
-                  Ler mais
+      <View className="mt-6 space-y-10">
+        {memories.map((memory) => {
+          return (
+            <View key={memory.id} className="space-y-4">
+              <View className="flex-row items-center gap-2">
+                <View className="h-px w-5 bg-gray-50" />
+                <Text className="font-body text-xs text-gray-100">
+                  {dayjs(memory.createdAt).format('D[ de ]MMMM[, ]YYYY')}
                 </Text>
-                <Icon name="arrow-right" size={16} color="#9e9ea0"></Icon>
-              </TouchableOpacity>
-            </Link>
-          </View>
-        </View>
+              </View>
+              <View className="space-y-4 px-8">
+                <Image
+                  source={{
+                    uri: memory.coverUrl,
+                  }}
+                  className="aspect-video w-full rounded-lg"
+                  alt=""
+                ></Image>
+                <Text className="font-body text-base leading-relaxed text-gray-100">
+                  {memory.excerpt}
+                </Text>
+                {/* gap doens't work very well inside a link */}
+                <Link href="/memories/id" asChild>
+                  <TouchableOpacity className="flex-row items-center gap-2">
+                    <Text className="font-body text-sm text-gray-200">
+                      Ler mais
+                    </Text>
+                    <Icon name="arrow-right" size={16} color="#9e9ea0"></Icon>
+                  </TouchableOpacity>
+                </Link>
+              </View>
+            </View>
+          )
+        })}
       </View>
+
+      <View></View>
     </ScrollView>
   )
 }
